@@ -29,7 +29,7 @@ const CONFIG = {
   //
   // Veja o arquivo SETUP_GOOGLE_SHEETS.md para instrucoes.
   // ----------------------------------------------------------
-  GOOGLE_SHEETS_URL: "",
+  GOOGLE_SHEETS_URL: "https://script.google.com/macros/s/AKfycbzQdvmUE3S5XUpeIuZ6mpojBO1IwU0jRrl4PjXDaX0Lu_Gc2KK3rS6qweY2EUrMNBGS9A/exec",
 
   // ----------------------------------------------------------
   // CONFIGURACOES DO JOGO
