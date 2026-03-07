@@ -31,12 +31,13 @@ const CONFIG = {
   // No arquivo SETUP.md há um guia passo a passo com imagens.
   // ----------------------------------------------------------
   FIREBASE: {
-    apiKey:            "",   // ex: "AIzaSyAbc123..."
-    authDomain:        "",   // ex: "meu-projeto.firebaseapp.com"
-    projectId:         "",   // ex: "meu-projeto"
-    storageBucket:     "",   // ex: "meu-projeto.appspot.com"
-    messagingSenderId: "",   // ex: "123456789"
-    appId:             ""    // ex: "1:123:web:abc..."
+    apiKey: "AIzaSyBlRWL42uLprs3XpB78WkTf9fEjuz9okv8",
+    authDomain: "python-game-ds1.firebaseapp.com",
+    projectId: "python-game-ds1",
+    storageBucket: "python-game-ds1.firebasestorage.app",
+    messagingSenderId: "158213289255",
+    appId: "1:158213289255:web:3a1997f9781dbcf0fe6502",
+    measurementId: "G-HHZC8RX0YX"
   },
 
   // ----------------------------------------------------------
