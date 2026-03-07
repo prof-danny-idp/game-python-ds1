@@ -282,6 +282,74 @@ body::after {
   border: 1px solid rgba(0,136,255,0.3);
 }
 
+/* ─── Botao Cansei ───────────────────────────────────────── */
+.btn-quit {
+  background: linear-gradient(135deg, #ff6600, #cc4400);
+  color: white;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-quit:hover {
+  background: linear-gradient(135deg, #ff8800, #ee5500);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255,102,0,0.4);
+}
+
+/* ─── Timer Bar (cachorro) ───────────────────────────────── */
+.timer-bar {
+  grid-area: timer;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timer-track {
+  position: relative;
+  height: 12px;
+  background: var(--bg-deep);
+  border-radius: 99px;
+  overflow: visible;
+  border: 1px solid var(--blue-dim);
+}
+
+.timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--yellow), var(--orange), var(--red));
+  border-radius: 99px;
+  transition: width 1s linear;
+  width: 0%;
+}
+
+.timer-dog {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: -20px;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  transition: left 1s linear;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.5));
+  z-index: 5;
+}
+
+.timer-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  font-family: var(--font-code);
+}
+
 /* ─── TELA DO JOGO ────────────────────────────────────────── */
 #screen-game {
   padding: 0;
@@ -292,10 +360,11 @@ body::after {
 
 .game-layout {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   grid-template-columns: 280px 1fr;
   grid-template-areas:
     "header header"
+    "timer timer"
     "sidebar main";
   min-height: 100vh;
   width: 100%;
@@ -1013,9 +1082,10 @@ body::after {
 @media (max-width: 768px) {
   .game-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     grid-template-areas:
       "header"
+      "timer"
       "sidebar"
       "main";
   }

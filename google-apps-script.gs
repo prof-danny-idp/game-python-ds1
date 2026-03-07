@@ -6,7 +6,7 @@
 // 1. Crie uma planilha no Google Sheets
 // 2. Renomeie a primeira aba para "Resultados"
 // 3. Na linha 1, coloque os cabecalhos:
-//    A1: Nome | B1: RA | C1: Pontos | D1: Salas | E1: Sala Atual
+//    A1: Nome | B1: RA | C1: Pontos | D1: Fases | E1: Fase Atual
 //    F1: Aproveitamento | G1: Data Inicio | H1: Data Fim
 // 4. Va em Extensoes > Apps Script
 // 5. Apague o conteudo padrao e cole este codigo
@@ -32,8 +32,8 @@ function doPost(e) {
       data.nome || "",
       data.ra || "",
       data.pontos || 0,
-      data.totalSalas || 0,
-      data.salaAtual || 0,
+      data.totalFases || 0,
+      data.faseAtual || 0,
       (data.aproveitamento || 0) + "%",
       data.dataInicio || "",
       data.dataFim || ""

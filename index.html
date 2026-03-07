@@ -116,7 +116,7 @@
     <div class="rules-list">
       <div class="rule-item rule-positive">
         <span class="rule-icon">+</span>
-        <span><strong>Acerto:</strong> Ganha os pontos da sala (100 a 500 pts conforme dificuldade)</span>
+        <span><strong>Acerto:</strong> Ganha os pontos da fase (100 a 500 pts conforme dificuldade)</span>
       </div>
       <div class="rule-item rule-positive">
         <span class="rule-icon">+</span>
@@ -124,7 +124,7 @@
       </div>
       <div class="rule-item rule-negative">
         <span class="rule-icon">-</span>
-        <span><strong>Usar dica:</strong> -50 pts e pontos da sala cortados pela metade</span>
+        <span><strong>Usar dica:</strong> -50 pts e pontos da fase cortados pela metade</span>
       </div>
       <div class="rule-item rule-negative">
         <span class="rule-icon">!</span>
@@ -132,7 +132,7 @@
       </div>
       <div class="rule-item rule-info">
         <span class="rule-icon">i</span>
-        <span><strong>100 salas</strong> divididas em 5 fases de dificuldade crescente</span>
+        <span><strong>100 fases</strong> de dificuldade crescente</span>
       </div>
       <div class="rule-item rule-info">
         <span class="rule-icon">i</span>
@@ -159,7 +159,7 @@
           <div class="progress-bar-fill" id="progress-bar-fill" style="width:0%"></div>
         </div>
         <div class="progress-label">
-          Progresso: <span id="progress-text">0 / 100</span> salas
+          Progresso: <span id="progress-text">0 / 100</span> fases
         </div>
       </div>
 
@@ -167,9 +167,21 @@
         <img id="player-avatar" class="player-avatar-sm" src="" alt="Avatar" style="display:none;">
         <span class="player-name-sm" id="player-name-display"></span>
         <div class="score-badge">⭐ <span class="score-display">0</span></div>
+        <button class="btn btn-quit" onclick="quitGame()">Cansei</button>
         <button class="btn btn-danger" onclick="logout()" style="padding:6px 12px; font-size:0.8rem;">Sair</button>
       </div>
     </header>
+
+    <!-- ─── Timer Bar (cachorro correndo) ────────────── -->
+    <div class="timer-bar" id="timer-bar">
+      <div class="timer-track">
+        <div class="timer-fill" id="timer-fill"></div>
+        <img src="dog.png" alt="Dog" class="timer-dog" id="timer-dog">
+      </div>
+      <div class="timer-label">
+        Tempo restante: <span id="timer-text">60:00</span>
+      </div>
+    </div>
 
     <!-- ─── Sidebar: Mapa ──────────────────────────────── -->
     <aside class="game-sidebar">
@@ -207,7 +219,7 @@
 
         <!-- Header da sala -->
         <div class="room-header">
-          <span class="room-id" id="room-number">Sala 1</span>
+          <span class="room-id" id="room-number">Fase 1</span>
           <div class="room-meta">
             <span class="room-category-badge" id="room-category">Aritmética</span>
             <span class="room-phase-badge" id="room-phase">Fase 1</span>
@@ -299,7 +311,7 @@
     <div class="complete-stats">
       <div class="stat-item">
         <div class="stat-value" id="final-rooms">100</div>
-        <div class="stat-label">Salas Concluídas</div>
+        <div class="stat-label">Fases Concluidas</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">🐍</div>

@@ -11,7 +11,11 @@ const STATE = {
   hintUsed: false,      // Dica usada na sala atual?
   roomStartTime: null,  // Quando o aluno entrou na sala
   sessionStartTime: null, // Inicio da sessao
+  gameStartTime: null,  // Quando o jogo comecou (apos senha)
+  timerInterval: null,  // Interval do timer
 };
+
+var GAME_DURATION_MS = 60 * 60 * 1000; // 60 minutos
 
 // --- Login com Nome e RA ---
 async function loginWithRA() {
@@ -40,10 +44,65 @@ async function loginWithRA() {
 }
 
 function logout() {
+  stopTimer();
   STATE.player = null;
   STATE.score  = 0;
   STATE.currentRoom = 1;
   showScreen('login');
+}
+
+// --- Botao "Cansei" ---
+function quitGame() {
+  stopTimer();
+  saveProgress();
+  saveToGoogleSheets();
+  showScreen('complete');
+  renderCompleteScreen();
+}
+
+// --- Timer de 60 minutos ---
+function startTimer() {
+  STATE.gameStartTime = Date.now();
+  updateTimerDisplay();
+  STATE.timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function stopTimer() {
+  if (STATE.timerInterval) {
+    clearInterval(STATE.timerInterval);
+    STATE.timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  var elapsed = Date.now() - STATE.gameStartTime;
+  var remaining = Math.max(0, GAME_DURATION_MS - elapsed);
+  var pct = (elapsed / GAME_DURATION_MS) * 100;
+  if (pct > 100) pct = 100;
+
+  // Atualizar barra e posicao do cachorro
+  var fill = document.getElementById('timer-fill');
+  var dog = document.getElementById('timer-dog');
+  var text = document.getElementById('timer-text');
+
+  if (fill) fill.style.width = pct + '%';
+  if (dog) dog.style.left = 'calc(' + pct + '% - 20px)';
+
+  // Formatar tempo restante
+  var totalSec = Math.ceil(remaining / 1000);
+  var min = Math.floor(totalSec / 60);
+  var sec = totalSec % 60;
+  if (text) text.textContent = (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec;
+
+  // Tempo esgotado
+  if (remaining <= 0) {
+    stopTimer();
+    showNotification('Tempo esgotado!', 'error');
+    saveProgress();
+    saveToGoogleSheets();
+    showScreen('complete');
+    renderCompleteScreen();
+  }
 }
 
 // --- Progresso (localStorage) ---
@@ -82,8 +141,8 @@ async function saveToGoogleSheets() {
     nome:       STATE.player.name,
     ra:         STATE.player.ra,
     pontos:     STATE.score,
-    totalSalas: QUESTIONS.length,
-    salaAtual:  STATE.currentRoom > QUESTIONS.length ? QUESTIONS.length : STATE.currentRoom,
+    totalFases: QUESTIONS.length,
+    faseAtual:  STATE.currentRoom > QUESTIONS.length ? QUESTIONS.length : STATE.currentRoom,
     aproveitamento: pct,
     dataInicio: STATE.sessionStartTime,
     dataFim:    new Date().toISOString(),
@@ -118,6 +177,7 @@ function checkPassword() {
     setTimeout(() => {
       showScreen('game');
       renderGame();
+      startTimer();
     }, 800);
   } else {
     input.classList.add('shake');
@@ -184,6 +244,7 @@ function handleCorrectAnswer(q, input) {
     input.classList.remove('correct');
 
     if (STATE.currentRoom > QUESTIONS.length) {
+      stopTimer();
       saveProgress();
       saveToGoogleSheets();
       showScreen('complete');
@@ -244,7 +305,7 @@ function renderQuestion() {
   STATE.hintUsed       = false;
   STATE.wrongAttempts  = 0;
 
-  document.getElementById('room-number').textContent    = 'Sala ' + q.id;
+  document.getElementById('room-number').textContent    = 'Fase ' + q.id;
   document.getElementById('room-category').textContent  = q.category;
   document.getElementById('room-title').textContent     = q.title;
   document.getElementById('room-phase').textContent     = 'Fase ' + q.phase;
@@ -310,7 +371,7 @@ function renderMiniMap() {
     const cell = document.createElement('div');
     cell.className  = 'maze-cell';
     cell.id         = 'cell-' + n;
-    cell.title      = 'Sala ' + n;
+    cell.title      = 'Fase ' + n;
     cell.dataset.n  = n;
 
     if (n < STATE.currentRoom)       cell.classList.add('done');
@@ -326,7 +387,7 @@ function renderMiniMap() {
   }
 
   const exitCell = document.getElementById('cell-100');
-  if (exitCell) exitCell.setAttribute('title', 'Sala 100 — BOSS FINAL!');
+  if (exitCell) exitCell.setAttribute('title', 'Fase 100 — BOSS FINAL!');
 }
 
 function markCellDone(n) {
@@ -386,24 +447,29 @@ function showAnswerFeedback(correct, points, explanation, autoHint) {
 
 // --- Tela de Conclusao ---
 function renderCompleteScreen() {
-  const totalPossible = QUESTIONS.reduce((s, q) => s + q.points, 0);
-  const pct = Math.round((STATE.score / totalPossible) * 100);
+  var completedRooms = Math.min(STATE.currentRoom - 1, QUESTIONS.length);
+  if (completedRooms < 0) completedRooms = 0;
+  var totalPossible = QUESTIONS.reduce(function(s, q) { return s + q.points; }, 0);
+  var pct = totalPossible > 0 ? Math.round((STATE.score / totalPossible) * 100) : 0;
 
   document.getElementById('final-score').textContent   = STATE.score.toLocaleString('pt-BR');
   document.getElementById('final-pct').textContent     = pct + '%';
   document.getElementById('final-name').textContent    = STATE.player?.name || 'Estudante';
-  document.getElementById('final-rooms').textContent   = QUESTIONS.length;
+  document.getElementById('final-rooms').textContent   = completedRooms + ' / ' + QUESTIONS.length;
 
-  let medal = 'Medal';
+  var medal = 'Medal';
   if (pct >= 90) medal = 'Ouro';
   else if (pct >= 75) medal = 'Prata';
   else if (pct >= 60) medal = 'Bronze';
   document.getElementById('final-medal').textContent = medal;
 
-  launchConfetti();
+  if (completedRooms >= QUESTIONS.length) {
+    launchConfetti();
+  }
 }
 
 function restartGame() {
+  stopTimer();
   STATE.currentRoom   = 1;
   STATE.score         = 0;
   STATE.wrongAttempts = 0;
@@ -412,6 +478,7 @@ function restartGame() {
   saveProgress();
   showScreen('game');
   renderGame();
+  startTimer();
 }
 
 // --- Confetti ---
