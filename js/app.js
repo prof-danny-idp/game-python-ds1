@@ -4,7 +4,7 @@
 
 // ─── Estado do Jogo ─────────────────────────────────────────
 const STATE = {
-  player: null,         // { name, email, photoURL, uid }
+  player: null,         // { name, ra, uid }
   currentRoom: 1,       // Sala atual (1–100)
   score: 0,             // Pontuação total
   wrongAttempts: 0,     // Tentativas erradas na sala atual
@@ -12,7 +12,6 @@ const STATE = {
   roomStartTime: null,  // Quando o aluno entrou na sala
   firebaseReady: false, // Firebase inicializado?
   db: null,             // Firestore instance
-  auth: null,           // Firebase Auth instance
   isDemo: false,        // Modo demo (sem Firebase)
 };
 
@@ -26,23 +25,10 @@ function initFirebase() {
   }
 
   try {
-    const app = firebase.initializeApp(cfg);
-    STATE.auth = firebase.auth();
-    STATE.db   = firebase.firestore();
+    firebase.initializeApp(cfg);
+    STATE.db = firebase.firestore();
     STATE.firebaseReady = true;
     console.log('[Firebase] Inicializado com sucesso.');
-
-    STATE.auth.onAuthStateChanged(user => {
-      if (user) {
-        STATE.player = {
-          uid:      user.uid,
-          name:     user.displayName,
-          email:    user.email,
-          photoURL: user.photoURL
-        };
-        loadProgress().then(() => showScreen('password'));
-      }
-    });
     return true;
   } catch (e) {
     console.error('[Firebase] Erro ao inicializar:', e);
@@ -51,29 +37,35 @@ function initFirebase() {
   }
 }
 
-// ─── Autenticação ────────────────────────────────────────────
-async function loginWithGoogle() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  try {
-    showLoading('Conectando com Google...');
-    await STATE.auth.signInWithPopup(provider);
-    // onAuthStateChanged cuida do resto
-  } catch (e) {
-    hideLoading();
-    if (e.code !== 'auth/popup-closed-by-user') {
-      showNotification('Erro ao conectar com Google. Tente novamente.', 'error');
-    }
+// ─── Login com Nome e RA ─────────────────────────────────────
+async function loginWithRA() {
+  const nameInput = document.getElementById('login-name');
+  const raInput   = document.getElementById('login-ra');
+  const name = nameInput.value.trim();
+  const ra   = raInput.value.trim();
+
+  if (!name) {
+    nameInput.classList.add('shake');
+    setTimeout(() => nameInput.classList.remove('shake'), 500);
+    showNotification('Digite seu nome completo.', 'error');
+    return;
   }
+  if (!ra) {
+    raInput.classList.add('shake');
+    setTimeout(() => raInput.classList.remove('shake'), 500);
+    showNotification('Digite seu RA.', 'error');
+    return;
+  }
+
+  STATE.player = { name, ra, uid: ra };
+  await loadProgress();
+  showScreen('password');
 }
 
-async function logout() {
-  if (STATE.firebaseReady) {
-    await STATE.auth.signOut();
-  }
+function logout() {
   STATE.player = null;
   STATE.score  = 0;
   STATE.currentRoom = 1;
-  localStorage.removeItem('dungeon_demo_player');
   showScreen('login');
 }
 
@@ -87,22 +79,21 @@ async function saveProgress() {
 
   if (STATE.firebaseReady && STATE.db && STATE.player) {
     try {
-      await STATE.db.collection('players').doc(STATE.player.uid).set({
+      await STATE.db.collection('players').doc(STATE.player.ra).set({
         ...data,
-        name:     STATE.player.name,
-        email:    STATE.player.email,
-        photoURL: STATE.player.photoURL
+        name: STATE.player.name,
+        ra:   STATE.player.ra,
       }, { merge: true });
     } catch (e) { console.error('[Firebase] Erro ao salvar:', e); }
   } else {
-    localStorage.setItem('dungeon_progress', JSON.stringify(data));
+    localStorage.setItem('dungeon_progress_' + (STATE.player?.ra || 'demo'), JSON.stringify(data));
   }
 }
 
 async function loadProgress() {
   if (STATE.firebaseReady && STATE.db && STATE.player) {
     try {
-      const doc = await STATE.db.collection('players').doc(STATE.player.uid).get();
+      const doc = await STATE.db.collection('players').doc(STATE.player.ra).get();
       if (doc.exists) {
         const d = doc.data();
         STATE.currentRoom = d.currentRoom || 1;
@@ -110,28 +101,13 @@ async function loadProgress() {
       }
     } catch (e) { console.error('[Firebase] Erro ao carregar:', e); }
   } else {
-    const saved = localStorage.getItem('dungeon_progress');
+    const saved = localStorage.getItem('dungeon_progress_' + (STATE.player?.ra || 'demo'));
     if (saved) {
       const d = JSON.parse(saved);
       STATE.currentRoom = d.currentRoom || 1;
       STATE.score       = d.score       || 0;
     }
   }
-}
-
-// ─── Tela de Login Demo ──────────────────────────────────────
-function demoLogin() {
-  const input = document.getElementById('demo-name');
-  const name  = input.value.trim();
-  if (!name) {
-    input.classList.add('shake');
-    setTimeout(() => input.classList.remove('shake'), 500);
-    return;
-  }
-  STATE.player = { name, email: '', photoURL: null, uid: 'demo_' + Date.now() };
-  STATE.isDemo = true;
-  localStorage.setItem('dungeon_demo_player', JSON.stringify(STATE.player));
-  loadProgress().then(() => showScreen('password'));
 }
 
 // ─── Verificação de Senha ────────────────────────────────────
@@ -517,13 +493,7 @@ function updatePlayerHeader() {
   const p = STATE.player;
   if (!p) return;
   document.getElementById('player-name-display').textContent = p.name;
-  const avatar = document.getElementById('player-avatar');
-  if (p.photoURL) {
-    avatar.src  = p.photoURL;
-    avatar.style.display = 'block';
-  } else {
-    avatar.style.display = 'none';
-  }
+  document.getElementById('player-avatar').style.display = 'none';
 }
 
 function showLoading(msg) {
@@ -569,9 +539,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement.id === 'class-password') {
     checkPassword();
   }
-  // Enter no nome demo
-  if (e.key === 'Enter' && document.activeElement.id === 'demo-name') {
-    demoLogin();
+  // Enter nos campos de login
+  if (e.key === 'Enter' && (document.activeElement.id === 'login-name' || document.activeElement.id === 'login-ra')) {
+    loginWithRA();
   }
 });
 
@@ -580,22 +550,6 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('game-title').textContent    = CONFIG.GAME_TITLE;
   document.getElementById('game-subtitle').textContent = CONFIG.GAME_SUBTITLE;
 
-  const hasFirebase = initFirebase();
-
-  if (!hasFirebase) {
-    // Modo demo: esconder botão Google, mostrar campo de nome
-    document.getElementById('btn-google-login').style.display = 'none';
-    document.getElementById('demo-login-section').style.display = 'flex';
-
-    // Verificar se já tem jogador salvo
-    const saved = localStorage.getItem('dungeon_demo_player');
-    if (saved) {
-      STATE.player = JSON.parse(saved);
-      STATE.isDemo = true;
-      loadProgress().then(() => showScreen('password'));
-      return;
-    }
-  }
-
+  initFirebase();
   showScreen('login');
 });
