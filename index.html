@@ -12,9 +12,7 @@
   <!-- Estilos -->
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Google Sheets integration via Apps Script -->
 </head>
 <body>
 
@@ -110,6 +108,37 @@
     <button class="btn btn-danger" onclick="logout()">
       Sair / Trocar conta
     </button>
+  </div>
+
+  <!-- Regras do Jogo -->
+  <div class="rules-card">
+    <h3 class="rules-title">Regras do Jogo</h3>
+    <div class="rules-list">
+      <div class="rule-item rule-positive">
+        <span class="rule-icon">+</span>
+        <span><strong>Acerto:</strong> Ganha os pontos da sala (100 a 500 pts conforme dificuldade)</span>
+      </div>
+      <div class="rule-item rule-positive">
+        <span class="rule-icon">+</span>
+        <span><strong>Resposta rapida (&lt;15s):</strong> +25 pts bonus</span>
+      </div>
+      <div class="rule-item rule-negative">
+        <span class="rule-icon">-</span>
+        <span><strong>Usar dica:</strong> -50 pts e pontos da sala cortados pela metade</span>
+      </div>
+      <div class="rule-item rule-negative">
+        <span class="rule-icon">!</span>
+        <span><strong>3 erros seguidos:</strong> Dica automatica (com penalidade)</span>
+      </div>
+      <div class="rule-item rule-info">
+        <span class="rule-icon">i</span>
+        <span><strong>100 salas</strong> divididas em 5 fases de dificuldade crescente</span>
+      </div>
+      <div class="rule-item rule-info">
+        <span class="rule-icon">i</span>
+        <span><strong>Pontuacao salva</strong> automaticamente no Google Sheets ao final</span>
+      </div>
+    </div>
   </div>
 
 </div>

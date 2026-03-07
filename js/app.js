@@ -1,43 +1,19 @@
 // ============================================================
-// PYTHON DUNGEON — Lógica Principal do Jogo
+// PYTHON DUNGEON — Logica Principal do Jogo
 // ============================================================
 
-// ─── Estado do Jogo ─────────────────────────────────────────
+// --- Estado do Jogo ---
 const STATE = {
-  player: null,         // { name, ra, uid }
-  currentRoom: 1,       // Sala atual (1–100)
-  score: 0,             // Pontuação total
+  player: null,         // { name, ra }
+  currentRoom: 1,       // Sala atual (1-100)
+  score: 0,             // Pontuacao total
   wrongAttempts: 0,     // Tentativas erradas na sala atual
   hintUsed: false,      // Dica usada na sala atual?
   roomStartTime: null,  // Quando o aluno entrou na sala
-  firebaseReady: false, // Firebase inicializado?
-  db: null,             // Firestore instance
-  isDemo: false,        // Modo demo (sem Firebase)
+  sessionStartTime: null, // Inicio da sessao
 };
 
-// ─── Firebase ───────────────────────────────────────────────
-function initFirebase() {
-  const cfg = CONFIG.FIREBASE;
-  if (!cfg.apiKey) {
-    STATE.isDemo = true;
-    console.log('[Demo Mode] Firebase não configurado. Usando localStorage.');
-    return false;
-  }
-
-  try {
-    firebase.initializeApp(cfg);
-    STATE.db = firebase.firestore();
-    STATE.firebaseReady = true;
-    console.log('[Firebase] Inicializado com sucesso.');
-    return true;
-  } catch (e) {
-    console.error('[Firebase] Erro ao inicializar:', e);
-    STATE.isDemo = true;
-    return false;
-  }
-}
-
-// ─── Login com Nome e RA ─────────────────────────────────────
+// --- Login com Nome e RA ---
 async function loginWithRA() {
   const nameInput = document.getElementById('login-name');
   const raInput   = document.getElementById('login-ra');
@@ -57,8 +33,9 @@ async function loginWithRA() {
     return;
   }
 
-  STATE.player = { name, ra, uid: ra };
-  await loadProgress();
+  STATE.player = { name, ra };
+  STATE.sessionStartTime = new Date().toISOString();
+  loadProgress();
   showScreen('password');
 }
 
@@ -69,48 +46,65 @@ function logout() {
   showScreen('login');
 }
 
-// ─── Progresso (Firebase ou localStorage) ───────────────────
-async function saveProgress() {
+// --- Progresso (localStorage) ---
+function saveProgress() {
+  if (!STATE.player) return;
   const data = {
     currentRoom: STATE.currentRoom,
     score:       STATE.score,
     updatedAt:   new Date().toISOString()
   };
+  localStorage.setItem('dungeon_progress_' + STATE.player.ra, JSON.stringify(data));
+}
 
-  if (STATE.firebaseReady && STATE.db && STATE.player) {
-    try {
-      await STATE.db.collection('players').doc(STATE.player.ra).set({
-        ...data,
-        name: STATE.player.name,
-        ra:   STATE.player.ra,
-      }, { merge: true });
-    } catch (e) { console.error('[Firebase] Erro ao salvar:', e); }
-  } else {
-    localStorage.setItem('dungeon_progress_' + (STATE.player?.ra || 'demo'), JSON.stringify(data));
+function loadProgress() {
+  if (!STATE.player) return;
+  const saved = localStorage.getItem('dungeon_progress_' + STATE.player.ra);
+  if (saved) {
+    const d = JSON.parse(saved);
+    STATE.currentRoom = d.currentRoom || 1;
+    STATE.score       = d.score       || 0;
   }
 }
 
-async function loadProgress() {
-  if (STATE.firebaseReady && STATE.db && STATE.player) {
-    try {
-      const doc = await STATE.db.collection('players').doc(STATE.player.ra).get();
-      if (doc.exists) {
-        const d = doc.data();
-        STATE.currentRoom = d.currentRoom || 1;
-        STATE.score       = d.score       || 0;
-      }
-    } catch (e) { console.error('[Firebase] Erro ao carregar:', e); }
-  } else {
-    const saved = localStorage.getItem('dungeon_progress_' + (STATE.player?.ra || 'demo'));
-    if (saved) {
-      const d = JSON.parse(saved);
-      STATE.currentRoom = d.currentRoom || 1;
-      STATE.score       = d.score       || 0;
-    }
+// --- Salvar no Google Sheets ---
+async function saveToGoogleSheets() {
+  const url = CONFIG.GOOGLE_SHEETS_URL;
+  if (!url) {
+    console.log('[Google Sheets] URL nao configurada. Dados nao enviados.');
+    return false;
+  }
+
+  const totalPossible = QUESTIONS.reduce((s, q) => s + q.points, 0);
+  const pct = Math.round((STATE.score / totalPossible) * 100);
+
+  const payload = {
+    nome:       STATE.player.name,
+    ra:         STATE.player.ra,
+    pontos:     STATE.score,
+    totalSalas: QUESTIONS.length,
+    salaAtual:  STATE.currentRoom > QUESTIONS.length ? QUESTIONS.length : STATE.currentRoom,
+    aproveitamento: pct,
+    dataInicio: STATE.sessionStartTime,
+    dataFim:    new Date().toISOString(),
+  };
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    console.log('[Google Sheets] Dados enviados com sucesso.');
+    return true;
+  } catch (e) {
+    console.error('[Google Sheets] Erro ao enviar:', e);
+    return false;
   }
 }
 
-// ─── Verificação de Senha ────────────────────────────────────
+// --- Verificacao de Senha ---
 function checkPassword() {
   const input    = document.getElementById('class-password');
   const entered  = input.value.trim();
@@ -119,7 +113,7 @@ function checkPassword() {
   if (!entered) return;
 
   if (entered === CONFIG.CLASS_PASSWORD) {
-    btn.textContent = '✓ Entrando...';
+    btn.textContent = 'Entrando...';
     btn.classList.add('success');
     setTimeout(() => {
       showScreen('game');
@@ -133,7 +127,7 @@ function checkPassword() {
   }
 }
 
-// ─── Núcleo do Jogo ──────────────────────────────────────────
+// --- Nucleo do Jogo ---
 function getCurrentQuestion() {
   return QUESTIONS[STATE.currentRoom - 1];
 }
@@ -165,29 +159,24 @@ function checkAnswer() {
 }
 
 function handleCorrectAnswer(q, input) {
-  // Calcular pontos
   let earned = q.points;
   if (STATE.hintUsed) earned = Math.floor(earned * 0.5);
 
-  // Bônus de velocidade
   const elapsed = (Date.now() - STATE.roomStartTime) / 1000;
   if (elapsed <= CONFIG.GAME.SPEED_BONUS_SECONDS && !STATE.hintUsed) {
     earned += CONFIG.GAME.SPEED_BONUS_POINTS;
-    showNotification(`⚡ Resposta rápida! +${CONFIG.GAME.SPEED_BONUS_POINTS} bônus!`, 'bonus');
+    showNotification('Resposta rapida! +' + CONFIG.GAME.SPEED_BONUS_POINTS + ' bonus!', 'bonus');
   }
 
   STATE.score += earned;
 
-  // Feedback visual
   input.classList.add('correct');
   showAnswerFeedback(true, earned, q.explanation);
 
-  // Atualizar mapa
   markCellDone(STATE.currentRoom);
 
   saveProgress();
 
-  // Avançar após delay
   setTimeout(() => {
     STATE.currentRoom++;
     STATE.wrongAttempts = 0;
@@ -195,6 +184,8 @@ function handleCorrectAnswer(q, input) {
     input.classList.remove('correct');
 
     if (STATE.currentRoom > QUESTIONS.length) {
+      saveProgress();
+      saveToGoogleSheets();
       showScreen('complete');
       renderCompleteScreen();
     } else {
@@ -217,7 +208,7 @@ function handleWrongAnswer(input) {
   }
 }
 
-// ─── Dica ────────────────────────────────────────────────────
+// --- Dica ---
 function useHint() {
   const q = getCurrentQuestion();
   if (STATE.hintUsed) return;
@@ -231,13 +222,13 @@ function useHint() {
   hintBox.classList.remove('hidden');
 
   document.getElementById('btn-hint').disabled = true;
-  document.getElementById('btn-hint').textContent = '💡 Dica usada';
+  document.getElementById('btn-hint').textContent = 'Dica usada';
 
-  showNotification(`💡 Dica: -${CONFIG.GAME.HINT_PENALTY} pts`, 'warning');
+  showNotification('Dica: -' + CONFIG.GAME.HINT_PENALTY + ' pts', 'warning');
   updateScoreDisplay();
 }
 
-// ─── Renderização ────────────────────────────────────────────
+// --- Renderizacao ---
 function renderGame() {
   renderMiniMap();
   renderQuestion();
@@ -253,42 +244,34 @@ function renderQuestion() {
   STATE.hintUsed       = false;
   STATE.wrongAttempts  = 0;
 
-  // Header da sala
-  document.getElementById('room-number').textContent    = `Sala ${q.id}`;
+  document.getElementById('room-number').textContent    = 'Sala ' + q.id;
   document.getElementById('room-category').textContent  = q.category;
   document.getElementById('room-title').textContent     = q.title;
-  document.getElementById('room-phase').textContent     = `Fase ${q.phase}`;
-  document.getElementById('room-points').textContent    = `${q.points} pts`;
+  document.getElementById('room-phase').textContent     = 'Fase ' + q.phase;
+  document.getElementById('room-points').textContent    = q.points + ' pts';
   document.getElementById('question-text').textContent  = q.question;
 
-  // Código com syntax highlight
   renderCode(q);
 
-  // Input
   const input = document.getElementById('answer-input');
   input.value       = '';
   input.className   = 'answer-input';
   input.placeholder = getPlaceholder(q);
 
-  // Dica
   const hintBox = document.getElementById('hint-box');
   hintBox.classList.add('hidden');
   const btnHint = document.getElementById('btn-hint');
   btnHint.disabled    = false;
-  btnHint.textContent = '💡 Dica';
+  btnHint.textContent = 'Dica';
 
-  // Feedback
   document.getElementById('feedback-box').classList.add('hidden');
 
-  // Progresso
   const pct = ((q.id - 1) / QUESTIONS.length) * 100;
-  document.getElementById('progress-bar-fill').style.width = `${pct}%`;
-  document.getElementById('progress-text').textContent = `${q.id - 1} / ${QUESTIONS.length}`;
+  document.getElementById('progress-bar-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = (q.id - 1) + ' / ' + QUESTIONS.length;
 
-  // Highlight célula atual no mapa
   highlightCurrentCell(q.id);
 
-  // Focar no input
   setTimeout(() => input.focus(), 100);
 }
 
@@ -296,32 +279,29 @@ function renderCode(q) {
   const container = document.getElementById('code-container');
 
   if (q.type === 'fill_blank') {
-    // Dividir o código no marcador _____
     const parts = q.code.split('_____');
     if (parts.length < 2) {
-      container.innerHTML = `<pre class="code-block"><code>${escapeHtml(q.code)}</code></pre>`;
+      container.innerHTML = '<pre class="code-block"><code>' + escapeHtml(q.code) + '</code></pre>';
       return;
     }
-    container.innerHTML = `
-      <div class="code-with-blank">
-        <pre class="code-block">${escapeHtml(parts[0])}<span class="blank-highlight">_____</span>${escapeHtml(parts[1])}</pre>
-        <div class="blank-label">↑ O que vai aqui?</div>
-      </div>
-    `;
+    container.innerHTML =
+      '<div class="code-with-blank">' +
+        '<pre class="code-block">' + escapeHtml(parts[0]) + '<span class="blank-highlight">_____</span>' + escapeHtml(parts[1]) + '</pre>' +
+        '<div class="blank-label">O que vai aqui?</div>' +
+      '</div>';
   } else {
-    // fill_print: mostrar código completo
     const highlighted = highlightPython(q.code);
-    container.innerHTML = `<pre class="code-block"><code>${highlighted}</code></pre>`;
+    container.innerHTML = '<pre class="code-block"><code>' + highlighted + '</code></pre>';
   }
 }
 
 function getPlaceholder(q) {
-  if (q.type === 'fill_print') return 'Digite o que será impresso...';
+  if (q.type === 'fill_print') return 'Digite o que sera impresso...';
   if (q.type === 'fill_blank') return 'Digite o que vai no lugar de _____';
   return 'Sua resposta...';
 }
 
-// ─── Mini Mapa ───────────────────────────────────────────────
+// --- Mini Mapa ---
 function renderMiniMap() {
   const grid = document.getElementById('maze-grid');
   grid.innerHTML = '';
@@ -329,15 +309,14 @@ function renderMiniMap() {
   for (let n = 1; n <= QUESTIONS.length; n++) {
     const cell = document.createElement('div');
     cell.className  = 'maze-cell';
-    cell.id         = `cell-${n}`;
-    cell.title      = `Sala ${n}`;
+    cell.id         = 'cell-' + n;
+    cell.title      = 'Sala ' + n;
     cell.dataset.n  = n;
 
     if (n < STATE.currentRoom)       cell.classList.add('done');
     else if (n === STATE.currentRoom) cell.classList.add('current');
     else                              cell.classList.add('locked');
 
-    // Posição no grid (snake)
     const row = Math.floor((n - 1) / 10);
     const col = row % 2 === 0 ? (n - 1) % 10 : 9 - ((n - 1) % 10);
     cell.style.gridRow    = row + 1;
@@ -346,26 +325,24 @@ function renderMiniMap() {
     grid.appendChild(cell);
   }
 
-  // Marcador de saída
   const exitCell = document.getElementById('cell-100');
   if (exitCell) exitCell.setAttribute('title', 'Sala 100 — BOSS FINAL!');
 }
 
 function markCellDone(n) {
-  const cell = document.getElementById(`cell-${n}`);
+  const cell = document.getElementById('cell-' + n);
   if (!cell) return;
   cell.classList.remove('current');
   cell.classList.add('done');
 }
 
 function highlightCurrentCell(n) {
-  // Remover highlight anterior
   document.querySelectorAll('.maze-cell.current').forEach(c => {
     c.classList.remove('current');
     if (parseInt(c.dataset.n) < n) c.classList.add('done');
     else c.classList.add('locked');
   });
-  const cell = document.getElementById(`cell-${n}`);
+  const cell = document.getElementById('cell-' + n);
   if (cell) {
     cell.classList.remove('locked', 'done');
     cell.classList.add('current');
@@ -373,11 +350,11 @@ function highlightCurrentCell(n) {
 }
 
 function scrollMapToCell(n) {
-  const cell = document.getElementById(`cell-${n}`);
+  const cell = document.getElementById('cell-' + n);
   if (cell) cell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ─── Feedback ────────────────────────────────────────────────
+// --- Feedback ---
 function showAnswerFeedback(correct, points, explanation, autoHint) {
   const box = document.getElementById('feedback-box');
   const ico = document.getElementById('feedback-icon');
@@ -388,39 +365,39 @@ function showAnswerFeedback(correct, points, explanation, autoHint) {
 
   if (correct) {
     box.classList.add('feedback-correct');
-    ico.textContent = '✓';
-    txt.textContent = `Correto! +${points} pontos`;
+    ico.textContent = 'V';
+    txt.textContent = 'Correto! +' + points + ' pontos';
     exp.textContent = explanation || '';
     exp.style.display = explanation ? 'block' : 'none';
     updateScoreDisplay();
   } else {
     box.classList.add('feedback-wrong');
-    ico.textContent = '✗';
+    ico.textContent = 'X';
     if (autoHint) {
-      txt.textContent = 'Ainda não! Veja a dica abaixo:';
+      txt.textContent = 'Ainda nao! Veja a dica abaixo:';
       useHint();
     } else {
       const rem = CONFIG.GAME.AUTO_HINT_AFTER - STATE.wrongAttempts;
-      txt.textContent = `Tente novamente! (${rem > 0 ? rem + ' tentativas para dica automática' : 'use a dica!'})`;
+      txt.textContent = 'Tente novamente! (' + (rem > 0 ? rem + ' tentativas para dica automatica' : 'use a dica!') + ')';
     }
     exp.style.display = 'none';
   }
 }
 
-// ─── Tela de Conclusão ───────────────────────────────────────
+// --- Tela de Conclusao ---
 function renderCompleteScreen() {
   const totalPossible = QUESTIONS.reduce((s, q) => s + q.points, 0);
   const pct = Math.round((STATE.score / totalPossible) * 100);
 
   document.getElementById('final-score').textContent   = STATE.score.toLocaleString('pt-BR');
-  document.getElementById('final-pct').textContent     = `${pct}%`;
+  document.getElementById('final-pct').textContent     = pct + '%';
   document.getElementById('final-name').textContent    = STATE.player?.name || 'Estudante';
   document.getElementById('final-rooms').textContent   = QUESTIONS.length;
 
-  let medal = '🏅';
-  if (pct >= 90) medal = '🥇';
-  else if (pct >= 75) medal = '🥈';
-  else if (pct >= 60) medal = '🥉';
+  let medal = 'Medal';
+  if (pct >= 90) medal = 'Ouro';
+  else if (pct >= 75) medal = 'Prata';
+  else if (pct >= 60) medal = 'Bronze';
   document.getElementById('final-medal').textContent = medal;
 
   launchConfetti();
@@ -431,12 +408,13 @@ function restartGame() {
   STATE.score         = 0;
   STATE.wrongAttempts = 0;
   STATE.hintUsed      = false;
+  STATE.sessionStartTime = new Date().toISOString();
   saveProgress();
   showScreen('game');
   renderGame();
 }
 
-// ─── Confetti ────────────────────────────────────────────────
+// --- Confetti ---
 function launchConfetti() {
   const canvas  = document.getElementById('confetti-canvas');
   const ctx     = canvas.getContext('2d');
@@ -449,7 +427,7 @@ function launchConfetti() {
     y:   Math.random() * canvas.height - canvas.height,
     r:   Math.random() * 6 + 3,
     d:   Math.random() * 5 + 1,
-    color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+    color: 'hsl(' + Math.random() * 360 + ', 80%, 60%)',
     tilt: Math.random() * 10 - 10
   }));
 
@@ -472,10 +450,10 @@ function launchConfetti() {
   draw();
 }
 
-// ─── UI Helpers ──────────────────────────────────────────────
+// --- UI Helpers ---
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-  document.getElementById(`screen-${name}`).classList.remove('hidden');
+  document.getElementById('screen-' + name).classList.remove('hidden');
 
   if (name === 'password' && STATE.player) {
     const el = document.getElementById('welcome-name');
@@ -506,9 +484,10 @@ function hideLoading() {
   document.getElementById('loading-overlay').classList.add('hidden');
 }
 
-function showNotification(msg, type = 'info') {
+function showNotification(msg, type) {
+  type = type || 'info';
   const el    = document.createElement('div');
-  el.className = `notification notification-${type}`;
+  el.className = 'notification notification-' + type;
   el.textContent = msg;
   document.getElementById('notifications').appendChild(el);
   setTimeout(() => { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }, 2500);
@@ -518,7 +497,7 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ─── Syntax Highlight Simples (Python) ──────────────────────
+// --- Syntax Highlight Simples (Python) ---
 function highlightPython(code) {
   const escaped = escapeHtml(code);
   return escaped
@@ -529,27 +508,22 @@ function highlightPython(code) {
     .replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
 }
 
-// ─── Teclas de Atalho ────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  // Enter no campo de resposta → verificar
+// --- Teclas de Atalho ---
+document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && document.activeElement.id === 'answer-input') {
     checkAnswer();
   }
-  // Enter no campo de senha
   if (e.key === 'Enter' && document.activeElement.id === 'class-password') {
     checkPassword();
   }
-  // Enter nos campos de login
   if (e.key === 'Enter' && (document.activeElement.id === 'login-name' || document.activeElement.id === 'login-ra')) {
     loginWithRA();
   }
 });
 
-// ─── Inicialização ───────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+// --- Inicializacao ---
+window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('game-title').textContent    = CONFIG.GAME_TITLE;
   document.getElementById('game-subtitle').textContent = CONFIG.GAME_SUBTITLE;
-
-  initFirebase();
   showScreen('login');
 });

@@ -1,52 +1,44 @@
 // ============================================================
-// PYTHON DUNGEON — CONFIGURAÇÕES
-// ⚠️  EDITE ESTE ARQUIVO antes de publicar!
+// PYTHON DUNGEON — CONFIGURACOES
+// Edite este arquivo antes de publicar!
 // ============================================================
 
 const CONFIG = {
 
   // ----------------------------------------------------------
-  // 🔑 SENHA DA AULA
+  // SENHA DA AULA
   // Troque esta senha a cada semestre ou turma.
-  // Você dirá a senha aos alunos durante a aula.
   // ----------------------------------------------------------
   CLASS_PASSWORD: "python2025",
 
   // ----------------------------------------------------------
-  // 📛 NOME DO JOGO (aparece no título)
+  // NOME DO JOGO (aparece no titulo)
   // ----------------------------------------------------------
   GAME_TITLE: "Python Dungeon",
   GAME_SUBTITLE: "Conquiste o labirinto dominando Python!",
 
   // ----------------------------------------------------------
-  // 🔥 FIREBASE (deixe vazio para jogar sem login/salvamento)
+  // GOOGLE SHEETS (via Google Apps Script)
   //
-  // Para ativar o Firebase:
-  // 1. Crie um projeto em https://console.firebase.google.com
-  // 2. Ative Authentication → Google
-  // 3. Crie um banco Firestore
-  // 4. Vá em Configurações do Projeto → Seus apps → </> Web
-  // 5. Copie os valores e cole aqui abaixo
+  // Para ativar o salvamento no Google Sheets:
+  // 1. Crie uma planilha no Google Sheets
+  // 2. Va em Extensoes > Apps Script
+  // 3. Cole o codigo do arquivo google-apps-script.gs
+  // 4. Faca o deploy como "Web App" (acesso: qualquer pessoa)
+  // 5. Copie a URL gerada e cole aqui abaixo
   //
-  // No arquivo SETUP.md há um guia passo a passo com imagens.
+  // Veja o arquivo SETUP_GOOGLE_SHEETS.md para instrucoes.
   // ----------------------------------------------------------
-  FIREBASE: {
-    apiKey:            "",   // ex: "AIzaSyAbc123..."
-    authDomain:        "",   // ex: "meu-projeto.firebaseapp.com"
-    projectId:         "",   // ex: "meu-projeto"
-    storageBucket:     "",   // ex: "meu-projeto.appspot.com"
-    messagingSenderId: "",   // ex: "123456789"
-    appId:             ""    // ex: "1:123:web:abc..."
-  },
+  GOOGLE_SHEETS_URL: "",
 
   // ----------------------------------------------------------
-  // ⚙️  CONFIGURAÇÕES DO JOGO
+  // CONFIGURACOES DO JOGO
   // ----------------------------------------------------------
   GAME: {
     // Pontos descontados ao usar uma dica
     HINT_PENALTY: 50,
 
-    // Bônus de velocidade (segundos para ganhar bônus)
+    // Bonus de velocidade (segundos para ganhar bonus)
     SPEED_BONUS_SECONDS: 15,
     SPEED_BONUS_POINTS: 25,
 

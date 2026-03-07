@@ -215,6 +215,73 @@ body::after {
   font-weight: 600;
 }
 
+/* ─── Card de Regras ─────────────────────────────────────── */
+.rules-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+}
+
+.rules-title {
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--blue-glow);
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.rule-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 900;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.rule-positive .rule-icon {
+  background: rgba(0,230,118,0.15);
+  color: var(--green);
+  border: 1px solid rgba(0,230,118,0.3);
+}
+
+.rule-negative .rule-icon {
+  background: rgba(255,68,102,0.15);
+  color: var(--red);
+  border: 1px solid rgba(255,68,102,0.3);
+}
+
+.rule-info .rule-icon {
+  background: rgba(0,136,255,0.15);
+  color: var(--blue-glow);
+  border: 1px solid rgba(0,136,255,0.3);
+}
+
 /* ─── TELA DO JOGO ────────────────────────────────────────── */
 #screen-game {
   padding: 0;
